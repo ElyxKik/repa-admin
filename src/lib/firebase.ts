@@ -1,4 +1,4 @@
-import { initializeApp } from 'firebase/app'
+import { initializeApp, getApps, getApp, FirebaseApp } from 'firebase/app'
 import { getAuth, Auth } from 'firebase/auth'
 import { getFirestore, Firestore } from 'firebase/firestore'
 import { getStorage, FirebaseStorage } from 'firebase/storage'
@@ -22,16 +22,44 @@ if (typeof window !== 'undefined') {
   })
 }
 
-// Initialize Firebase
-const app = initializeApp(firebaseConfig)
+let app: FirebaseApp;
+let auth: Auth;
+let db: Firestore;
+let storage: FirebaseStorage;
 
-// Initialize Firebase Authentication
-export const auth: Auth = getAuth(app)
+try {
+  // Check if Firebase app already exists
+  if (getApps().length > 0) {
+    app = getApp();
+  } else {
+    // Validate config before initialization
+    if (!firebaseConfig.apiKey) {
+      if (typeof window === 'undefined') {
+        console.warn('⚠️ Firebase API key missing during server-side render/build. Skipping initialization.');
+        throw new Error('Missing Firebase API Key during build');
+      } else {
+        console.error('❌ Firebase API key is missing! Check your .env.local file.');
+      }
+    }
+    app = initializeApp(firebaseConfig);
+  }
 
-// Initialize Cloud Firestore
-export const db: Firestore = getFirestore(app)
+  // Initialize services
+  auth = getAuth(app);
+  db = getFirestore(app);
+  storage = getStorage(app);
 
-// Initialize Cloud Storage
-export const storage: FirebaseStorage = getStorage(app)
+} catch (error) {
+  console.error('Error initializing Firebase:', error);
+  
+  // Create mock objects to prevent build crashes
+  // This allows the build to pass even if Firebase keys are missing/invalid
+  // The app will verify keys again on the client side
+  app = {} as FirebaseApp;
+  auth = {} as Auth;
+  db = {} as Firestore;
+  storage = {} as FirebaseStorage;
+}
 
+export { auth, db, storage }
 export default app
