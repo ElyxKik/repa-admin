@@ -25,6 +25,7 @@ interface KYCVerification {
   status: 'NOT_STARTED' | 'IN_PROGRESS' | 'VERIFIED' | 'REJECTED'
   documentIds: string[]
   selfieImageUrl?: string
+  additionalImages?: string[]
   verifiedAt?: string | null
   verifiedBy?: string | null
   rejectionReason?: string | null
@@ -359,6 +360,37 @@ export default function KYCValidationPage() {
                   className="w-full max-w-md h-auto rounded-lg cursor-pointer hover:opacity-90 transition"
                   onClick={() => setSelectedImage(verification.selfieImageUrl!)}
                 />
+              </div>
+            )}
+
+            {/* Images supplémentaires */}
+            {verification.additionalImages && verification.additionalImages.length > 0 && (
+              <div className="card">
+                <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
+                  <FileText size={20} />
+                  Images supplémentaires ({verification.additionalImages.length})
+                </h2>
+                <p className="text-sm text-gray-600 mb-4">
+                  Images additionnelles uploadées par le technicien pour la vérification
+                </p>
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                  {verification.additionalImages.map((imageUrl, index) => (
+                    <div key={index} className="relative group">
+                      <img
+                        src={imageUrl}
+                        alt={`Image supplémentaire ${index + 1}`}
+                        className="w-full h-48 object-cover rounded-lg cursor-pointer hover:opacity-90 transition border border-gray-200"
+                        onClick={() => setSelectedImage(imageUrl)}
+                      />
+                      <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-20 transition-all rounded-lg flex items-center justify-center">
+                        <ZoomIn className="text-white opacity-0 group-hover:opacity-100 transition-opacity" size={32} />
+                      </div>
+                      <div className="absolute bottom-2 left-2 bg-black bg-opacity-60 text-white text-xs px-2 py-1 rounded">
+                        Image {index + 1}
+                      </div>
+                    </div>
+                  ))}
+                </div>
               </div>
             )}
 
