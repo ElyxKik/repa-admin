@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import ProtectedDashboardLayout from '@/components/layout/ProtectedDashboardLayout'
 import { Search, Filter, Plus, Wrench, CheckCircle, Clock, AlertCircle, Trash2, XCircle } from 'lucide-react'
+import Link from 'next/link'
 import toast from 'react-hot-toast'
 import { collection, query, orderBy, getDocs, doc, getDoc, updateDoc, deleteDoc, Timestamp } from 'firebase/firestore'
 import { db } from '@/lib/firebase'
@@ -244,10 +245,19 @@ export default function RepairsPage() {
             <h1 className="text-3xl font-bold text-gray-900">Gestion des Réparations</h1>
             <p className="text-gray-600 mt-2">Gérez et suivez les demandes de réparation</p>
           </div>
-          <button className="flex items-center space-x-2 bg-primary hover:bg-secondary text-white px-4 py-2 rounded-lg transition">
-            <Plus size={20} />
-            <span>Nouvelle Réparation</span>
-          </button>
+          <div className="flex items-center gap-3">
+            <Link
+              href="/repairs/common-issues"
+              className="flex items-center space-x-2 bg-white border border-gray-300 hover:bg-gray-50 text-gray-700 px-4 py-2 rounded-lg transition"
+            >
+              <AlertCircle size={20} />
+              <span>Problèmes récurrents</span>
+            </Link>
+            <button className="flex items-center space-x-2 bg-primary hover:bg-secondary text-white px-4 py-2 rounded-lg transition">
+              <Plus size={20} />
+              <span>Nouvelle Réparation</span>
+            </button>
+          </div>
         </div>
 
         {/* Stats */}
