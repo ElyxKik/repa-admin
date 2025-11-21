@@ -170,6 +170,14 @@ export default function KYCValidationPage() {
         updatedAt: Timestamp.now()
       })
       
+      // Mettre à jour isVerified du technicien à false
+      if (verification?.technicianId) {
+        await updateDoc(doc(db, 'users', verification.technicianId), {
+          isVerified: false,
+          updatedAt: Timestamp.now()
+        })
+      }
+      
       toast.success('Vérification KYC rejetée')
       router.push('/kyc')
     } catch (error) {
