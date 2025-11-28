@@ -3,9 +3,9 @@
 import { useState, useEffect } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import ProtectedDashboardLayout from '@/components/layout/ProtectedDashboardLayout'
-import { CheckCircle, XCircle, X, ZoomIn, ZoomOut, ArrowLeft, FileText, User, Mail, Phone, Calendar } from 'lucide-react'
+import { CheckCircle, XCircle, X, ZoomIn, ZoomOut, ArrowLeft, FileText, User, Mail, Phone, Calendar, MapPin, Briefcase, Heart, Globe } from 'lucide-react'
 import toast from 'react-hot-toast'
-import { doc, getDoc, updateDoc, Timestamp } from 'firebase/firestore'
+import { doc, getDoc, updateDoc, Timestamp, collection, query, where, getDocs } from 'firebase/firestore'
 import { db } from '@/lib/firebase'
 import Link from 'next/link'
 
@@ -16,7 +16,10 @@ interface KYCDocument {
   frontImageUrl: string
   backImageUrl?: string | null
   expiryDate: string
-  status: string
+  status: 'PENDING' | 'VERIFIED' | 'REJECTED'
+  technicianId: string
+  uploadedAt: Timestamp | string
+  rejectionReason?: string | null
 }
 
 interface KYCVerification {
@@ -31,6 +34,18 @@ interface KYCVerification {
   rejectionReason?: string | null
   createdAt: Timestamp | string
   updatedAt: Timestamp | string
+  // Informations personnelles
+  firstName?: string
+  lastName?: string
+  surname?: string
+  dateOfBirth?: string
+  placeOfBirth?: string
+  gender?: string
+  maritalStatus?: string
+  nationality?: string
+  phoneNumber?: string
+  workplacePhotoUrl?: string | null
+  equipmentPhotoUrl?: string | null
   // Données enrichies
   technicianName?: string
   technicianEmail?: string
@@ -92,28 +107,33 @@ export default function KYCValidationPage() {
       }
       
       // Récupérer les documents
-      if (kycData.documentIds && kycData.documentIds.length > 0) {
-        console.log('🔍 Chargement documents:', kycData.documentIds.length)
-        const documents = await Promise.all(
-          kycData.documentIds.map(async (docId) => {
-            try {
-              const docSnap = await getDoc(doc(db, 'kyc_documents', docId))
-              if (docSnap.exists()) {
-                console.log('✅ Document chargé:', docId)
-                return { id: docSnap.id, ...docSnap.data() } as KYCDocument
-              }
-              console.warn('⚠️ Document non trouvé:', docId)
-              return null
-            } catch (error) {
-              console.error('❌ Erreur chargement document:', docId, error)
-              return null
-            }
-          })
+      console.log('📄 documentIds:', kycData.documentIds)
+      console.log('👤 technicianId:', kycData.technicianId)
+      
+      // Toujours utiliser la méthode par technicianId car plus fiable
+      console.log('🔍 Chargement documents par technicianId:', kycData.technicianId)
+      try {
+        const docsQuery = query(
+          collection(db, 'kyc_documents'),
+          where('technicianId', '==', kycData.technicianId)
         )
-        kycData.documents = documents.filter(d => d !== null) as KYCDocument[]
-        console.log('✅ Total documents chargés:', kycData.documents.length)
-      } else {
-        console.log('ℹ️ Aucun document à charger')
+        console.log('📋 Exécution de la requête Firestore...')
+        const docsSnapshot = await getDocs(docsQuery)
+        console.log('📊 Nombre de documents trouvés:', docsSnapshot.size)
+        
+        const documents: KYCDocument[] = []
+        docsSnapshot.forEach((docSnap) => {
+          const docData = { id: docSnap.id, ...docSnap.data() } as KYCDocument
+          console.log('✅ Document récupéré:', docData.id, docData)
+          documents.push(docData)
+        })
+        
+        kycData.documents = documents
+        console.log('✅ Total documents chargés:', documents.length)
+      } catch (error) {
+        console.error('❌ Erreur chargement documents par technicianId:', error)
+        console.error('❌ Détails de l\'erreur:', JSON.stringify(error, null, 2))
+        kycData.documents = []
       }
       
       setVerification(kycData)
@@ -129,6 +149,7 @@ export default function KYCValidationPage() {
   const handleApprove = async () => {
     setValidating(true)
     try {
+      // Mettre à jour la vérification KYC
       await updateDoc(doc(db, 'kyc_verifications', kycId), {
         status: 'VERIFIED',
         verifiedAt: new Date().toISOString(),
@@ -142,6 +163,24 @@ export default function KYCValidationPage() {
           isVerified: true,
           updatedAt: Timestamp.now()
         })
+      }
+      
+      // Mettre à jour tous les documents KYC à VERIFIED
+      if (verification?.documents && verification.documents.length > 0) {
+        console.log('📝 Mise à jour des documents KYC...')
+        const updatePromises = verification.documents.map(async (document) => {
+          try {
+            await updateDoc(doc(db, 'kyc_documents', document.id), {
+              status: 'VERIFIED',
+              updatedAt: Timestamp.now()
+            })
+            console.log('✅ Document vérifié:', document.id)
+          } catch (error) {
+            console.error('❌ Erreur mise à jour document:', document.id, error)
+          }
+        })
+        await Promise.all(updatePromises)
+        console.log('✅ Tous les documents ont été vérifiés')
       }
       
       toast.success('Vérification KYC approuvée avec succès')
@@ -162,6 +201,7 @@ export default function KYCValidationPage() {
 
     setValidating(true)
     try {
+      // Mettre à jour la vérification KYC
       await updateDoc(doc(db, 'kyc_verifications', kycId), {
         status: 'REJECTED',
         verifiedAt: new Date().toISOString(),
@@ -176,6 +216,25 @@ export default function KYCValidationPage() {
           isVerified: false,
           updatedAt: Timestamp.now()
         })
+      }
+      
+      // Mettre à jour tous les documents KYC à REJECTED
+      if (verification?.documents && verification.documents.length > 0) {
+        console.log('📝 Mise à jour des documents KYC...')
+        const updatePromises = verification.documents.map(async (document) => {
+          try {
+            await updateDoc(doc(db, 'kyc_documents', document.id), {
+              status: 'REJECTED',
+              rejectionReason: rejectionReason,
+              updatedAt: Timestamp.now()
+            })
+            console.log('✅ Document rejeté:', document.id)
+          } catch (error) {
+            console.error('❌ Erreur mise à jour document:', document.id, error)
+          }
+        })
+        await Promise.all(updatePromises)
+        console.log('✅ Tous les documents ont été rejetés')
       }
       
       toast.success('Vérification KYC rejetée')
@@ -195,8 +254,45 @@ export default function KYCValidationPage() {
       PASSPORT: 'Passeport',
       DRIVER_LICENSE: 'Permis de conduire',
       BUSINESS_LICENSE: 'Licence commerciale',
+      ADDITIONAL: 'Document additionnel',
     }
     return labels[type] || type
+  }
+
+  const getDocumentStatusLabel = (status: string) => {
+    const labels: Record<string, string> = {
+      PENDING: 'En attente',
+      VERIFIED: 'Vérifié',
+      REJECTED: 'Rejeté',
+    }
+    return labels[status] || status
+  }
+
+  const getDocumentStatusColor = (status: string) => {
+    const colors: Record<string, string> = {
+      PENDING: 'bg-yellow-100 text-yellow-800 border-yellow-200',
+      VERIFIED: 'bg-green-100 text-green-800 border-green-200',
+      REJECTED: 'bg-red-100 text-red-800 border-red-200',
+    }
+    return colors[status] || 'bg-gray-100 text-gray-800 border-gray-200'
+  }
+
+  const getGenderLabel = (gender: string | undefined) => {
+    const labels: Record<string, string> = {
+      M: 'Masculin',
+      F: 'Féminin',
+    }
+    return gender ? labels[gender] || gender : '-'
+  }
+
+  const getMaritalStatusLabel = (status: string | undefined) => {
+    const labels: Record<string, string> = {
+      SINGLE: 'Célibataire',
+      MARRIED: 'Marié(e)',
+      DIVORCED: 'Divorcé(e)',
+      WIDOWED: 'Veuf/Veuve',
+    }
+    return status ? labels[status] || status : '-'
   }
 
   const formatDate = (date: Timestamp | string | null | undefined) => {
@@ -261,16 +357,63 @@ export default function KYCValidationPage() {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Details */}
           <div className="lg:col-span-2 space-y-6">
-            {/* Informations du technicien */}
+            {/* Informations personnelles */}
             <div className="card">
               <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
                 <User size={20} />
-                Informations du technicien
+                Informations personnelles
               </h2>
               <div className="grid grid-cols-2 gap-4">
                 <div>
+                  <p className="text-sm text-gray-600">Prénom</p>
+                  <p className="font-medium text-gray-900">{verification.firstName || '-'}</p>
+                </div>
+                <div>
                   <p className="text-sm text-gray-600">Nom</p>
-                  <p className="font-medium text-gray-900">{verification.technicianName || '-'}</p>
+                  <p className="font-medium text-gray-900">{verification.lastName || '-'}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-gray-600">Surnom</p>
+                  <p className="font-medium text-gray-900">{verification.surname || '-'}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-gray-600">Date de naissance</p>
+                  <p className="font-medium text-gray-900 flex items-center gap-2">
+                    <Calendar size={14} />
+                    {formatDate(verification.dateOfBirth)}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-sm text-gray-600">Lieu de naissance</p>
+                  <p className="font-medium text-gray-900 flex items-center gap-2">
+                    <MapPin size={14} />
+                    {verification.placeOfBirth || '-'}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-sm text-gray-600">Genre</p>
+                  <p className="font-medium text-gray-900">{getGenderLabel(verification.gender)}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-gray-600">État civil</p>
+                  <p className="font-medium text-gray-900 flex items-center gap-2">
+                    <Heart size={14} />
+                    {getMaritalStatusLabel(verification.maritalStatus)}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-sm text-gray-600">Nationalité</p>
+                  <p className="font-medium text-gray-900 flex items-center gap-2">
+                    <Globe size={14} />
+                    {verification.nationality || '-'}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-sm text-gray-600">Téléphone</p>
+                  <p className="font-medium text-gray-900 flex items-center gap-2">
+                    <Phone size={14} />
+                    {verification.phoneNumber || verification.technicianPhone || '-'}
+                  </p>
                 </div>
                 <div>
                   <p className="text-sm text-gray-600">Email</p>
@@ -279,20 +422,18 @@ export default function KYCValidationPage() {
                     {verification.technicianEmail || '-'}
                   </p>
                 </div>
-                {verification.technicianPhone && (
-                  <div>
-                    <p className="text-sm text-gray-600">Téléphone</p>
-                    <p className="font-medium text-gray-900 flex items-center gap-2">
-                      <Phone size={14} />
-                      {verification.technicianPhone}
-                    </p>
-                  </div>
-                )}
                 <div>
                   <p className="text-sm text-gray-600">Date de soumission</p>
                   <p className="font-medium text-gray-900 flex items-center gap-2">
                     <Calendar size={14} />
                     {formatDate(verification.createdAt)}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-sm text-gray-600">Dernière mise à jour</p>
+                  <p className="font-medium text-gray-900 flex items-center gap-2">
+                    <Calendar size={14} />
+                    {formatDate(verification.updatedAt)}
                   </p>
                 </div>
               </div>
@@ -312,16 +453,34 @@ export default function KYCValidationPage() {
                         <h3 className="font-semibold text-gray-900">
                           {getDocumentTypeLabel(document.documentType)}
                         </h3>
-                        <span className="text-sm text-gray-600">
-                          N° {document.documentNumber}
+                        <span className={`text-xs font-medium px-3 py-1 rounded-full border ${getDocumentStatusColor(document.status)}`}>
+                          {getDocumentStatusLabel(document.status)}
                         </span>
                       </div>
                       <div className="grid grid-cols-2 gap-4 mb-3">
                         <div>
+                          <p className="text-sm text-gray-600">Numéro du document</p>
+                          <p className="font-medium text-gray-900 text-sm break-all">{document.documentNumber || '-'}</p>
+                        </div>
+                        <div>
                           <p className="text-sm text-gray-600">Date d'expiration</p>
-                          <p className="font-medium text-gray-900">{document.expiryDate || '-'}</p>
+                          <p className="font-medium text-gray-900">{formatDate(document.expiryDate)}</p>
+                        </div>
+                        <div>
+                          <p className="text-sm text-gray-600">Date d'upload</p>
+                          <p className="font-medium text-gray-900">{formatDate(document.uploadedAt)}</p>
+                        </div>
+                        <div>
+                          <p className="text-sm text-gray-600">ID du document</p>
+                          <p className="font-medium text-gray-900 text-xs">{document.id}</p>
                         </div>
                       </div>
+                      {document.rejectionReason && (
+                        <div className="mb-3 p-2 bg-red-50 border border-red-200 rounded">
+                          <p className="text-sm text-gray-600">Raison du rejet</p>
+                          <p className="font-medium text-red-800 text-sm">{document.rejectionReason}</p>
+                        </div>
+                      )}
                       <div className="grid grid-cols-2 gap-4">
                         <div>
                           <p className="text-sm text-gray-600 mb-2">Recto</p>
@@ -358,18 +517,60 @@ export default function KYCValidationPage() {
               )}
             </div>
 
-            {/* Selfie */}
-            {verification.selfieImageUrl && (
-              <div className="card">
-                <h2 className="text-xl font-bold mb-4">Photo selfie</h2>
-                <img
-                  src={verification.selfieImageUrl}
-                  alt="Selfie"
-                  className="w-full max-w-md h-auto rounded-lg cursor-pointer hover:opacity-90 transition"
-                  onClick={() => setSelectedImage(verification.selfieImageUrl!)}
-                />
+            {/* Photos de vérification */}
+            <div className="card">
+              <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
+                <User size={20} />
+                Photos de vérification
+              </h2>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {/* Selfie */}
+                {verification.selfieImageUrl && (
+                  <div>
+                    <p className="text-sm text-gray-600 mb-2 font-medium">Photo selfie</p>
+                    <img
+                      src={verification.selfieImageUrl}
+                      alt="Selfie"
+                      className="w-full h-64 object-cover rounded-lg cursor-pointer hover:opacity-90 transition border border-gray-200"
+                      onClick={() => setSelectedImage(verification.selfieImageUrl!)}
+                    />
+                  </div>
+                )}
+                
+                {/* Photo du lieu de travail */}
+                {verification.workplacePhotoUrl && (
+                  <div>
+                    <p className="text-sm text-gray-600 mb-2 font-medium flex items-center gap-2">
+                      <Briefcase size={14} />
+                      Photo du lieu de travail
+                    </p>
+                    <img
+                      src={verification.workplacePhotoUrl}
+                      alt="Lieu de travail"
+                      className="w-full h-64 object-cover rounded-lg cursor-pointer hover:opacity-90 transition border border-gray-200"
+                      onClick={() => setSelectedImage(verification.workplacePhotoUrl!)}
+                    />
+                  </div>
+                )}
+                
+                {/* Photo de l'équipement */}
+                {verification.equipmentPhotoUrl && (
+                  <div>
+                    <p className="text-sm text-gray-600 mb-2 font-medium">Photo de l'équipement</p>
+                    <img
+                      src={verification.equipmentPhotoUrl}
+                      alt="Équipement"
+                      className="w-full h-64 object-cover rounded-lg cursor-pointer hover:opacity-90 transition border border-gray-200"
+                      onClick={() => setSelectedImage(verification.equipmentPhotoUrl!)}
+                    />
+                  </div>
+                )}
               </div>
-            )}
+              
+              {!verification.selfieImageUrl && !verification.workplacePhotoUrl && !verification.equipmentPhotoUrl && (
+                <p className="text-gray-600 text-center py-8">Aucune photo de vérification disponible</p>
+              )}
+            </div>
 
             {/* Images supplémentaires */}
             {verification.additionalImages && verification.additionalImages.length > 0 && (
