@@ -8,7 +8,6 @@ import toast from 'react-hot-toast'
 
 interface PaymentFormModalProps {
   technicianId: string | null
-  technicianBalance?: number
   onClose: () => void
   onSuccess: () => void
 }
@@ -27,7 +26,7 @@ interface Commission {
   createdAt: Timestamp | string
 }
 
-export default function PaymentFormModal({ technicianId, technicianBalance, onClose, onSuccess }: PaymentFormModalProps) {
+export default function PaymentFormModal({ technicianId, onClose, onSuccess }: PaymentFormModalProps) {
   const [loading, setLoading] = useState(false)
   const [loadingTechnicians, setLoadingTechnicians] = useState(true)
   const [technicians, setTechnicians] = useState<Technician[]>([])
