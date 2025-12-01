@@ -1,7 +1,7 @@
 'use client'
 
 import { ReactNode, useState } from 'react'
-import { Menu, X, LogOut, Settings, Home, Users, FileCheck, Wrench, User, Smartphone, DollarSign } from 'lucide-react'
+import { Menu, X, LogOut, Settings, Home, Users, FileCheck, Wrench, User, Smartphone, DollarSign, Star } from 'lucide-react'
 import Link from 'next/link'
 import { useAuth } from '@/contexts/AuthContext'
 
@@ -24,6 +24,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
     { href: '/users', label: 'Utilisateurs', icon: Users },
     { href: '/payments', label: 'Paiements', icon: DollarSign },
     { href: '/devices', label: 'Devices', icon: Smartphone },
+    { href: '/reviews', label: 'Avis', icon: Star },
     { href: '/settings', label: 'Paramètres', icon: Settings },
   ]
 

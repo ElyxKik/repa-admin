@@ -171,11 +171,21 @@ export default function PaymentsPage() {
 
   const fetchPayments = async () => {
     try {
-      const paymentsQuery = query(
-        collection(db, 'repa_payments'),
-        orderBy('createdAt', 'desc')
-      )
-      const paymentsSnapshot = await getDocs(paymentsQuery)
+      // Essayer d'abord sans orderBy pour éviter les problèmes d'index
+      const paymentsRef = collection(db, 'repa_payments')
+      let paymentsSnapshot
+      
+      try {
+        // Tenter avec orderBy
+        const paymentsQuery = query(paymentsRef, orderBy('createdAt', 'desc'))
+        paymentsSnapshot = await getDocs(paymentsQuery)
+      } catch (indexError) {
+        // Si l'index n'existe pas, récupérer sans tri
+        console.warn('⚠️ Index manquant pour orderBy, récupération sans tri:', indexError)
+        paymentsSnapshot = await getDocs(paymentsRef)
+      }
+      
+      console.log(`📊 Paiements trouvés: ${paymentsSnapshot.size}`)
       
       const paymentsData: Payment[] = []
       
@@ -204,9 +214,16 @@ export default function PaymentsPage() {
         } as Payment)
       }
       
+      // Trier côté client si nécessaire
+      paymentsData.sort((a, b) => {
+        const dateA = a.createdAt instanceof Timestamp ? a.createdAt.toDate() : new Date(a.createdAt)
+        const dateB = b.createdAt instanceof Timestamp ? b.createdAt.toDate() : new Date(b.createdAt)
+        return dateB.getTime() - dateA.getTime()
+      })
+      
       setPayments(paymentsData)
     } catch (error) {
-      console.error('Erreur chargement paiements:', error)
+      console.error('❌ Erreur chargement paiements:', error)
     }
   }
 

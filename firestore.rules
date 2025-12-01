@@ -1,0 +1,57 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Fonction pour vérifier si l'utilisateur est admin
+    function isAdmin() {
+      return request.auth != null && 
+             get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'ADMIN';
+    }
+    
+    // Fonction pour vérifier si l'utilisateur est authentifié
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    // Règles pour les utilisateurs
+    match /users/{userId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin() || request.auth.uid == userId;
+    }
+    
+    // Règles pour les commissions REPA
+    match /repa_commissions/{commissionId} {
+      allow read, write: if isAuthenticated();
+    }
+    
+    // Règles pour les paiements REPA
+    match /repa_payments/{paymentId} {
+      allow read, write: if isAuthenticated();
+    }
+    
+    // Règles pour les vérifications KYC
+    match /kyc_verifications/{docId} {
+      allow read, write: if isAuthenticated();
+    }
+    
+    // Règles pour les documents KYC
+    match /kyc_documents/{docId} {
+      allow read, write: if isAuthenticated();
+    }
+    
+    // Règles pour les demandes de réparation
+    match /repair_requests/{docId} {
+      allow read, write: if isAuthenticated();
+    }
+    
+    // Règles pour les appareils
+    match /devices/{docId} {
+      allow read, write: if isAuthenticated();
+    }
+    
+    // Règles pour les notifications
+    match /notifications/{docId} {
+      allow read, write: if isAuthenticated();
+    }
+  }
+}

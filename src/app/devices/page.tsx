@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import ProtectedDashboardLayout from '@/components/layout/ProtectedDashboardLayout'
-import { Plus, Search, Edit2, Trash2, Eye, Power, X, Smartphone, Laptop, Tablet, Watch, Tv, Headphones, Camera, Printer, Gamepad } from 'lucide-react'
+import { Plus, Search, Edit2, Trash2, Eye, Power, X, Smartphone, Laptop, Tablet, Watch, Tv, Headphones, Camera, Printer, Gamepad, Car, AirVent, Refrigerator, LayoutGrid, Bike, Microwave } from 'lucide-react'
 import Link from 'next/link'
 import { collection, query, orderBy, getDocs, addDoc, updateDoc, deleteDoc, doc, Timestamp, getCountFromServer } from 'firebase/firestore'
 import { db } from '@/lib/firebase'
@@ -29,6 +29,12 @@ const ICON_MAP: Record<string, any> = {
   print_rounded: Printer,
   sports_esports_rounded: Gamepad,
   devices_other_rounded: Smartphone,
+  car_rounded: Car,
+  air_vent_rounded: AirVent,
+  refrigerator_rounded: Refrigerator,
+  modular_rounded: LayoutGrid,
+  motorcycle_rounded: Bike,
+  appliance_rounded: Microwave,
 }
 
 const AVAILABLE_ICONS = [
@@ -41,6 +47,12 @@ const AVAILABLE_ICONS = [
   { id: 'camera_alt_rounded', label: 'Caméra', Icon: Camera },
   { id: 'print_rounded', label: 'Imprimante', Icon: Printer },
   { id: 'sports_esports_rounded', label: 'Console', Icon: Gamepad },
+  { id: 'car_rounded', label: 'Véhicule', Icon: Car },
+  { id: 'air_vent_rounded', label: 'Climatiseur', Icon: AirVent },
+  { id: 'refrigerator_rounded', label: 'Frigo', Icon: Refrigerator },
+  { id: 'modular_rounded', label: 'Modulaire', Icon: LayoutGrid },
+  { id: 'motorcycle_rounded', label: 'Moto', Icon: Bike },
+  { id: 'appliance_rounded', label: 'Électroménager', Icon: Microwave },
   { id: 'devices_other_rounded', label: 'Autre', Icon: Smartphone },
 ]
 
